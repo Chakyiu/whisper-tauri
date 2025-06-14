@@ -8,3 +8,7 @@
 /package-lock.json
 
 /.DS_Store
+
+# Testing data
+*.mp4
+*.wav

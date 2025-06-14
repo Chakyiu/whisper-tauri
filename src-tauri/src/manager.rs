@@ -6,14 +6,12 @@ use crate::types::*;
 
 pub struct TranscriptionManager {
     config: ConfigManager,
-    converter: AudioConverter,
 }
 
 impl TranscriptionManager {
     pub fn new() -> Result<Self> {
         Ok(Self {
             config: ConfigManager::new()?,
-            converter: AudioConverter::new()?,
         })
     }
 

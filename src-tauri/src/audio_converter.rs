@@ -1,102 +1,141 @@
-use anyhow::{anyhow, Result};
-use rubato::Resampler;
-use std::path::Path;
-use std::process::Command;
+extern crate ffmpeg_next as ffmpeg;
 
-pub struct AudioConverter;
+use anyhow::{anyhow, Result};
+use std::path::Path;
+
+pub struct AudioConverter {}
 
 impl AudioConverter {
-    pub fn new() -> Result<Self> {
-        // Check if ffmpeg is available
-        if !Self::is_ffmpeg_available() {
-            return Err(anyhow!("FFmpeg is not installed or not available in PATH"));
-        }
-        Ok(AudioConverter)
+    pub fn new() -> Self {
+        ffmpeg::init().unwrap();
+
+        Self {}
     }
 
-    fn is_ffmpeg_available() -> bool {
-        Command::new("ffmpeg").arg("-version").output().is_ok()
-    }
-
-    pub fn convert_to_wav(
+    fn convert_to_wav(
         &self,
         input_path: &Path,
         output_path: &Path,
-        progress_callback: Option<Box<dyn Fn(f32) + Send>>,
-    ) -> Result<()> {
-        let input_str = input_path
-            .to_str()
-            .ok_or_else(|| anyhow!("Invalid input path"))?;
-        let output_str = output_path
-            .to_str()
-            .ok_or_else(|| anyhow!("Invalid output path"))?;
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut input = ffmpeg::format::input(&Path::new(input_path))?;
+        let mut output = ffmpeg::format::output(&Path::new(output_path))?;
 
-        // Use ffmpeg command line tool for conversion
-        let output = Command::new("ffmpeg")
-            .arg("-i")
-            .arg(input_str)
-            .arg("-ar")
-            .arg("16000") // 16kHz sample rate
-            .arg("-ac")
-            .arg("1") // Mono
-            .arg("-c:a")
-            .arg("pcm_s16le") // 16-bit PCM
-            .arg("-y") // Overwrite output files
-            .arg(output_str)
-            .output()?;
+        // Find the best audio stream
+        let input_stream = input
+            .streams()
+            .best(ffmpeg::media::Type::Audio)
+            .ok_or("No audio stream found")?;
+        let stream_index = input_stream.index();
 
-        if !output.status.success() {
-            let error_msg = String::from_utf8_lossy(&output.stderr);
-            return Err(anyhow!("FFmpeg conversion failed: {}", error_msg));
+        // Get decoder for the input audio stream
+        let context_decoder =
+            ffmpeg::codec::context::Context::from_parameters(input_stream.parameters())?;
+        let mut decoder = context_decoder.decoder().audio()?;
+
+        // Set up encoder with the desired parameters
+        let codec = ffmpeg::encoder::find(ffmpeg::codec::Id::PCM_S16LE)
+            .ok_or("PCM_S16LE codec not found")?;
+
+        let mut output_stream = output.add_stream(codec)?;
+        let mut encoder = ffmpeg::codec::context::Context::new_with_codec(codec)
+            .encoder()
+            .audio()?;
+
+        // Configure encoder parameters matching your ffmpeg command
+        encoder.set_rate(16000); // -ar 16000
+        encoder.set_channel_layout(ffmpeg::util::channel_layout::ChannelLayout::MONO); // -ac 1
+        encoder.set_format(ffmpeg::format::Sample::I16(
+            ffmpeg::format::sample::Type::Packed,
+        )); // pcm_s16le
+        encoder.set_bit_rate(256000);
+        encoder.set_max_bit_rate(256000);
+
+        // Set output stream time base
+        output_stream.set_time_base(ffmpeg::Rational(1, 16000));
+
+        // Open the encoder
+        let mut encoder = encoder.open_as(codec)?;
+        output_stream.set_parameters(&encoder);
+
+        // Write header
+        output.write_header()?;
+
+        // Create resampler for format conversion
+        let mut resampler = ffmpeg::software::resampling::context::Context::get(
+            decoder.format(),
+            decoder.channel_layout(),
+            decoder.rate(),
+            ffmpeg::format::Sample::I16(ffmpeg::format::sample::Type::Packed),
+            ffmpeg::util::channel_layout::ChannelLayout::MONO,
+            16000,
+        )?;
+
+        let mut frame_index = 0;
+
+        // Process packets
+        for (stream, packet) in input.packets() {
+            if stream.index() == stream_index {
+                decoder.send_packet(&packet)?;
+                self.receive_and_process_frames(
+                    &mut decoder,
+                    &mut resampler,
+                    &mut encoder,
+                    &mut output,
+                    &mut frame_index,
+                )?;
+            }
         }
 
-        if let Some(callback) = progress_callback {
-            callback(100.0);
-        }
+        // Flush decoder
+        decoder.send_eof()?;
+        self.receive_and_process_frames(
+            &mut decoder,
+            &mut resampler,
+            &mut encoder,
+            &mut output,
+            &mut frame_index,
+        )?;
+
+        // Write trailer
+        output.write_trailer()?;
 
         Ok(())
     }
 
-    pub fn get_audio_info(&self, path: &Path) -> Result<(f64, i32, i32)> {
-        let input_str = path.to_str().ok_or_else(|| anyhow!("Invalid path"))?;
+    fn receive_and_process_frames(
+        &self,
+        decoder: &mut ffmpeg::decoder::Audio,
+        resampler: &mut ffmpeg::software::resampling::context::Context,
+        encoder: &mut ffmpeg::encoder::Audio,
+        output: &mut ffmpeg::format::context::Output,
+        frame_index: &mut usize,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut decoded = ffmpeg::util::frame::audio::Audio::empty();
 
-        let output = Command::new("ffprobe")
-            .arg("-v")
-            .arg("quiet")
-            .arg("-print_format")
-            .arg("json")
-            .arg("-show_format")
-            .arg("-show_streams")
-            .arg(input_str)
-            .output()?;
+        while decoder.receive_frame(&mut decoded).is_ok() {
+            let mut resampled = ffmpeg::util::frame::audio::Audio::empty();
+            resampler.run(&decoded, &mut resampled)?;
 
-        if !output.status.success() {
-            return Err(anyhow!("Failed to get audio info"));
-        }
+            resampled.set_pts(Some(*frame_index as i64));
+            *frame_index += resampled.samples();
 
-        let json_str = String::from_utf8(output.stdout)?;
-        let json: serde_json::Value = serde_json::from_str(&json_str)?;
+            // Send frame to encoder
+            encoder.send_frame(&resampled)?;
 
-        // Extract audio stream info
-        if let Some(streams) = json["streams"].as_array() {
-            for stream in streams {
-                if stream["codec_type"] == "audio" {
-                    let duration = stream["duration"]
-                        .as_str()
-                        .and_then(|s| s.parse::<f64>().ok())
-                        .unwrap_or(0.0);
-                    let sample_rate = stream["sample_rate"]
-                        .as_str()
-                        .and_then(|s| s.parse::<i32>().ok())
-                        .unwrap_or(44100);
-                    let channels = stream["channels"].as_i64().unwrap_or(2) as i32;
-
-                    return Ok((duration, sample_rate, channels));
-                }
+            // Receive encoded packets
+            let mut encoded_packet = ffmpeg::Packet::empty();
+            while encoder.receive_packet(&mut encoded_packet).is_ok() {
+                encoded_packet.set_stream(0);
+                encoded_packet.rescale_ts(
+                    ffmpeg::Rational(1, 16000),
+                    output.stream(0).unwrap().time_base(),
+                );
+                // output.write_interleaved(&encoded_packet)?;
+                encoded_packet.write_interleaved(output).unwrap();
             }
         }
 
-        Err(anyhow!("No audio stream found"))
+        Ok(())
     }
 
     pub fn is_audio_file(&self, path: &Path) -> bool {
@@ -122,14 +161,14 @@ mod tests {
 
     #[test]
     fn test_convert_to_wav() {
-        let converter = AudioConverter::new().expect("Failed to create AudioConverter");
+        let converter = AudioConverter::new();
         let input = Path::new("testing.mp4");
         let output = Path::new("testing.wav");
         if output.exists() {
             fs::remove_file(output).unwrap();
         }
         converter
-            .convert_to_wav(input, output, None)
+            .convert_to_wav(input, output)
             .expect("Conversion failed");
         assert!(output.exists(), "Output WAV file was not created");
         // Optionally, check file size or header
