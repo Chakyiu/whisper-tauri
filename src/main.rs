@@ -1,4 +1,5 @@
 mod app;
+mod debug_view;
 
 use app::*;
 use leptos::prelude::*;

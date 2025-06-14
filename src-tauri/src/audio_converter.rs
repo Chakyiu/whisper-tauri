@@ -1,6 +1,6 @@
 extern crate ffmpeg_next as ffmpeg;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use std::path::Path;
 
 pub struct AudioConverter {}
@@ -12,11 +12,7 @@ impl AudioConverter {
         Self {}
     }
 
-    fn convert_to_wav(
-        &self,
-        input_path: &Path,
-        output_path: &Path,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn convert_to_wav(&self, input_path: &Path, output_path: &Path) -> Result<()> {
         let mut input = ffmpeg::format::input(&Path::new(input_path))?;
         let mut output = ffmpeg::format::output(&Path::new(output_path))?;
 
@@ -24,7 +20,7 @@ impl AudioConverter {
         let input_stream = input
             .streams()
             .best(ffmpeg::media::Type::Audio)
-            .ok_or("No audio stream found")?;
+            .ok_or_else(|| anyhow::anyhow!("No audio stream found"))?;
         let stream_index = input_stream.index();
 
         // Get decoder for the input audio stream
@@ -34,7 +30,7 @@ impl AudioConverter {
 
         // Set up encoder with the desired parameters
         let codec = ffmpeg::encoder::find(ffmpeg::codec::Id::PCM_S16LE)
-            .ok_or("PCM_S16LE codec not found")?;
+            .ok_or_else(|| anyhow::anyhow!("PCM_S16LE codec not found"))?;
 
         let mut output_stream = output.add_stream(codec)?;
         let mut encoder = ffmpeg::codec::context::Context::new_with_codec(codec)
@@ -109,7 +105,7 @@ impl AudioConverter {
         encoder: &mut ffmpeg::encoder::Audio,
         output: &mut ffmpeg::format::context::Output,
         frame_index: &mut usize,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<()> {
         let mut decoded = ffmpeg::util::frame::audio::Audio::empty();
 
         while decoder.receive_frame(&mut decoded).is_ok() {
