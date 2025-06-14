@@ -1,0 +1,16 @@
+{
+    "name": "whisper-tauri",
+    "version": "1.0.0",
+    "description": "Tailwind CSS setup for Whisper Tauri application",
+    "scripts": {
+        "build-css": "tailwindcss -i ./src/css/input.css -o ./src/css/output.css",
+        "build-css-prod": "tailwindcss -i ./src/css/input.css -o ./src/css/output.css --minify",
+        "dev": "trunk serve",
+        "build": "npm run build-css-prod && trunk build"
+    },
+    "devDependencies": {
+        "tailwindcss": "^3.4.0",
+        "@tailwindcss/forms": "^0.5.7",
+        "@tailwindcss/typography": "^0.5.10"
+    }
+}

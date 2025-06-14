@@ -1,0 +1,14 @@
+[build]
+target = "index.html"
+
+[[hooks]]
+stage = "pre_build"
+command = "npm"
+command_arguments = ["run", "build-css-prod"]
+
+[watch]
+ignore = ["./src-tauri"]
+
+[serve]
+port = 1420
+open = false
