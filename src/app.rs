@@ -18,7 +18,7 @@ pub fn App() -> impl IntoView {
     provide_meta_context();
 
     let tab_names = vec!["Whisper", "Models", "Settings", "Debug"];
-    let (tab, set_tab) = signal(String::from("Models"));
+    let (tab, set_tab) = signal(String::from("Settings"));
     let change_tab = move |tab: String| {
         set_tab.set(tab);
     };
