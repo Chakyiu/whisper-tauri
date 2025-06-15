@@ -65,74 +65,82 @@ impl ConfigManager {
     pub fn get_available_models(&self) -> Vec<WhisperModel> {
         let mut models = vec![
             WhisperModel {
-                name: "tiny".to_string(),
+                name: "ggml-tiny.bin".to_string(),
                 size: "39 MB".to_string(),
                 url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin"
                     .to_string(),
                 downloaded: false,
                 file_path: None,
+                progress: None,
             },
             WhisperModel {
-                name: "base".to_string(),
+                name: "ggml-base.bin".to_string(),
                 size: "142 MB".to_string(),
                 url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin"
                     .to_string(),
                 downloaded: false,
                 file_path: None,
+                progress: None,
             },
             WhisperModel {
-                name: "small".to_string(),
+                name: "ggml-small.bin".to_string(),
                 size: "466 MB".to_string(),
                 url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
                     .to_string(),
                 downloaded: false,
                 file_path: None,
+                progress: None,
             },
             WhisperModel {
-                name: "medium".to_string(),
+                name: "ggml-medium.bin".to_string(),
                 size: "1.5 GB".to_string(),
                 url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin"
                     .to_string(),
                 downloaded: false,
                 file_path: None,
+                progress: None,
             },
             WhisperModel {
-                name: "large-v1".to_string(),
+                name: "ggml-large-v1".to_string(),
                 size: "2.9 GB".to_string(),
                 url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v1.bin"
                     .to_string(),
                 downloaded: false,
                 file_path: None,
+                progress: None,
             },
             WhisperModel {
-                name: "large-v2".to_string(),
+                name: "ggml-large-v2".to_string(),
                 size: "2.9 GB".to_string(),
                 url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v2.bin"
                     .to_string(),
                 downloaded: false,
                 file_path: None,
+                progress: None,
             },
             WhisperModel {
-                name: "large-v3".to_string(),
+                name: "ggml-large-v3".to_string(),
                 size: "2.9 GB".to_string(),
                 url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin"
                     .to_string(),
                 downloaded: false,
                 file_path: None,
+                progress: None,
             },
             WhisperModel {
-                name: "large-v3-turbo".to_string(),
+                name: "ggml-large-v3-turbo".to_string(),
                 size: "1.6 GB".to_string(),
                 url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin"
                     .to_string(),
                 downloaded: false,
                 file_path: None,
+                progress: None,
             },
         ];
 
         // Check which models are already downloaded
         for model in &mut models {
-            let model_path = self.models_dir.join(format!("ggml-{}.bin", model.name));
+            let model_path = self.models_dir.join(format!("{}", model.name));
             if model_path.exists() {
                 model.downloaded = true;
                 model.file_path = Some(model_path);
@@ -143,6 +151,6 @@ impl ConfigManager {
     }
 
     pub fn get_model_path(&self, model_name: &str) -> PathBuf {
-        self.models_dir.join(format!("ggml-{}.bin", model_name))
+        self.models_dir.join(format!("{}", model_name))
     }
 }

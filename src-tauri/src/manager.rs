@@ -39,7 +39,7 @@ impl TranscriptionManager {
     pub async fn download_model(
         &self,
         model_name: &str,
-        progress_callback: impl Fn(f32) + Send + Sync + 'static,
+        progress_callback: impl Fn(i32) + Send + Sync + 'static,
     ) -> Result<()> {
         let models = self.config.get_available_models();
         let model = models

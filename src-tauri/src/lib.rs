@@ -28,7 +28,7 @@ async fn get_available_models(
     Ok(manager.get_available_models())
 }
 
-#[tauri::command]
+#[tauri::command(rename_all = "snake_case")]
 async fn download_model(
     model_name: String,
     state: State<'_, TranscriptionState>,

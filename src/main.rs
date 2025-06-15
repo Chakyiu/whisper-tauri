@@ -1,5 +1,6 @@
 mod app;
-mod debug_view;
+mod components;
+mod view;
 
 use app::*;
 use leptos::prelude::*;

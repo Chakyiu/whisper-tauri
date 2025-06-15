@@ -58,6 +58,7 @@ pub struct WhisperModel {
     pub url: String,
     pub downloaded: bool,
     pub file_path: Option<PathBuf>,
+    pub progress: Option<f32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

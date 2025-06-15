@@ -24,7 +24,7 @@ impl ModelDownloader {
         progress_callback: F,
     ) -> Result<()>
     where
-        F: Fn(f32) + Send + Sync,
+        F: Fn(i32) + Send + Sync,
     {
         log::debug!("Downloading Model: {}", model.name);
         let response = self.client.get(&model.url).send().await?;
@@ -41,14 +41,18 @@ impl ModelDownloader {
         let mut stream = response.bytes_stream();
         let mut file = File::create(output_path).await?;
 
+        let mut last_progress: i32 = 0;
         while let Some(chunk) = stream.next().await {
             let chunk = chunk?;
             file.write_all(&chunk).await?;
             downloaded += chunk.len() as u64;
 
-            if total_size > 0 {
-                let progress = (downloaded as f32 / total_size as f32) * 100.0;
-                progress_callback(progress);
+            if total_size > 0  {
+                let progress: i32 = ((downloaded as f32 / total_size as f32) * 100.0) as i32;
+                if progress > last_progress {
+                    last_progress = progress;
+                    progress_callback(progress);
+                }
             }
         }
 
