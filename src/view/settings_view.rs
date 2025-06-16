@@ -191,6 +191,7 @@ pub fn SettingsView() -> impl IntoView {
                                                         prop:value=move || current_settings.model.clone()
                                                         on:change=move |ev| {
                                                             let value = event_target_value(&ev);
+                                                            log::info!("selected {}", value);
                                                             if let Some(mut settings) = settings.get() {
                                                                 settings.model = value;
                                                                 set_settings.set(Some(settings));
