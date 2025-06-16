@@ -14,6 +14,10 @@ This project serves as my personal learning experience with Rust and Leptos. I n
   - [ ] Drag and Drop
 - [x] Whisper Model Selection View
 - [ ] Settings View
+  - [ ] Model Selection
+  - [ ] Language Selection
+  - [ ] Output format Selection
+  - [ ] Output path Selection
 - [ ] Add support to Windows App and Linux
 - [ ] Add more support on different language
 - [ ] Add video cutting features
