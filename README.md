@@ -19,7 +19,9 @@ This project serves as my personal learning experience with Rust and Leptos. I n
   - [ ] Output format Selection
   - [ ] Output path Selection
 - [ ] Add support to Windows App and Linux
-- [ ] Add more support on different language
+
+## Will do
+
 - [ ] Add video cutting features
 - [ ] Add preprocessing function (e.g. using spleeter to extract vocals)
 
